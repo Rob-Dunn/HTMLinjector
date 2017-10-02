@@ -6,11 +6,21 @@
     <SharedGUID>9932374a-aac2-446c-9273-4caab5cb2208</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>WebsiteBuilderServices</Import_RootNamespace>
+    <Import_RootNamespace>HTMLinjectorServices</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)BuildService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IFile.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IFolder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Models\Template.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Models\Tag.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Models\TagPosition.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BuildHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService_Templates.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService_Tags.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Models\" />
+    <Folder Include="$(MSBuildThisFileDirectory)BuildService\" />
   </ItemGroup>
 </Project>

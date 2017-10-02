@@ -7,6 +7,10 @@ namespace HTMLinjectorCL
 {
     public class Program
     {
+        /// <summary>
+        /// Command Line implementation of HTMLinjector
+        /// </summary>
+        /// <param name="args">The command-line arguments.</param>
         public static void Main(string[] args)
         {
             Console.WriteLine("\r\nHTMLinjector v" + Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion + "\r\n");
@@ -38,11 +42,12 @@ namespace HTMLinjectorCL
             CLFolder sourceFolder = new CLFolder(sourceFolderPath);
             CLFolder outputFolder = new CLFolder(outputFolderPath);
 
+            // Hook up to the build events so that we can display build progress to the user
             BuildHandler buildHandler = new BuildHandler();
             buildHandler.BuildEvent += (sender, e) => { Console.WriteLine(e.EventMessage); };
 
+            // Start the build
             BuildService buildService = new BuildService();
-
             buildService.DoBuild(sourceFolder, outputFolder, buildHandler).Wait();
         }
     }

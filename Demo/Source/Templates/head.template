@@ -1,0 +1,49 @@
+﻿<!-- TEMPLATE_START id='head' -->
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0' />
+    <meta name="title" content="{{{pageTitle}}}">
+    <meta name="keywords" content="{{{pageKeywords}}}">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta name="robots" content="index, follow">
+
+    <title><!-- INJECT_TEMPLATE_VALUE valueId='pageTitle' --></title>
+
+    <style>
+        body
+        {
+            padding: 0;
+            margin: 0;
+            border: 0;
+        }
+        header
+        {
+            overflow: hidden;
+            background-color: #7FC9FF;
+            padding: 10px;
+        }
+        header h1
+        {
+            margin: 0;
+        }
+        header ul
+        {
+            padding: 0;
+        }
+        header ul li
+        {
+            float: left;
+            padding: 5px;
+            display: block;
+        }
+        section
+        {
+            padding: 10px;
+        }
+        footer
+        {
+            text-align: center;
+        }
+    </style>
+</head>
+<!-- TEMPLATE_END -->
