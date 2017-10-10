@@ -6,14 +6,24 @@ using HTMLinjectorServices.Models;
 
 namespace HTMLinjectorServices
 {
-    public partial class BuildService
+    internal class TemplateServices : ITemplateServices
     {
+        private IBuildHandler BuildHandler { get; set; }
+        private ITagServices TagServices { get; set; }
+
+        public TemplateServices(IBuildHandler buildHandler, ITagServices tagServices)
+        {
+            this.BuildHandler = buildHandler;
+            this.TagServices = tagServices;
+        }
+
         /// <summary>
         /// Loads template files from the specified folder and child folders
         /// </summary>
         /// <returns>An awaitable Task</returns>
         /// <param name="currentFolder">The folder to load templates from</param>
-        private async Task LoadTemplatesRecursive(IFolder currentFolder)
+        /// <param name="templates">A list of templates to be populated</param>
+        public async Task LoadTemplatesRecursive(IFolder currentFolder, Dictionary<string, Template> templates)
         {
             // Recursively load template files from child folders
             List<IFolder> folders = await currentFolder.GetChildFoldersAsync();
@@ -21,7 +31,7 @@ namespace HTMLinjectorServices
             {
                 foreach (IFolder childFolder in folders)
                 {
-                    await this.LoadTemplatesRecursive(childFolder);
+                    await this.LoadTemplatesRecursive(childFolder, templates);
                 }
             }
 
@@ -34,7 +44,8 @@ namespace HTMLinjectorServices
                     if (file.Name.EndsWith(".template", StringComparison.OrdinalIgnoreCase))
                     {
                         // Load html file
-                        await this.LoadTemplate(file);
+                        Template template = await this.LoadTemplate(file);
+                        templates.Add(template.Id, template);
                     }
                 }
             }
@@ -45,15 +56,17 @@ namespace HTMLinjectorServices
         /// </summary>
         /// <returns>The template.</returns>
         /// <param name="file">File.</param>
-        private async Task LoadTemplate(IFile file)
+        private async Task<Template> LoadTemplate(IFile file)
         {
             this.BuildHandler.SignalBuildEvent("Loading template " + file.Path);
 
             string text = await file.ReadAllTextAsync();
 
             // Look for and extract the template tag from the file contents
-            List<Tag> tags = this.ExtractTags(text, "TEMPLATE", true);
+            List<Tag> tags = this.TagServices.ExtractTags(text, "TEMPLATE", true);
             if (tags == null || tags.Count == 0) this.BuildHandler.SignalBuildError("Missing TEMPLATE tag");
+
+            Template template = null;
 
             foreach (Tag tag in tags)
             {
@@ -61,15 +74,14 @@ namespace HTMLinjectorServices
                 string id = null;
                 if (!tag.Properties.TryGetValue("id", out id)) this.BuildHandler.SignalBuildError("Missing id property for template tag");
 
-                Template template = new Template()
+                template = new Template()
                 {
                     Id = id,
                     Text = tag.Contents
                 };
-
-                // Add the template
-                this.Templates.Add(id, template);
             }
+
+            return template;
         }
 
         /// <summary>
@@ -78,12 +90,12 @@ namespace HTMLinjectorServices
         /// <param name="rawHtml">The HTML to inject templates in to</param>
         /// <param name="outputHtml">The processed HTML, including injected templates</param>
         /// <param name="values">A list of injection values that can be injected into the templates</param>
-        private void InjectTemplateRecursive(string rawHtml, out string outputHtml, ref Dictionary<string, string> values)
+        public void InjectTemplateRecursive(string rawHtml, Dictionary<string, Template> templates, out string outputHtml, ref Dictionary<string, string> values)
         {
             outputHtml = null;
 
             // Find all the places in the html that we need to inject into
-            List<Tag> tags = this.ExtractTags(rawHtml, "INJECT_TEMPLATE", false);
+            List<Tag> tags = this.TagServices.ExtractTags(rawHtml, "INJECT_TEMPLATE", false);
 
             if (tags == null || tags.Count == 0)
             {
@@ -91,78 +103,91 @@ namespace HTMLinjectorServices
                 outputHtml = rawHtml;
                 return;
             }
-            else
+
+            int endOfLastTag = 0;
+            StringBuilder outputHtmlBuilder = new StringBuilder();
+
+            foreach (Tag tag in tags)
             {
-                int endOfLastTag = 0;
-                StringBuilder outputHtmlBuilder = new StringBuilder();
-
-                foreach (Tag tag in tags)
+                // Get values to inject into the HTML after the template HTML has been injected
+                foreach (KeyValuePair<string, string> keyValuePair in tag.Properties)
                 {
-                    // Get values to inject into the HTML after the template HTML has been injected
-                    foreach (KeyValuePair<string, string> keyValuePair in tag.Properties)
+                    if (keyValuePair.Key != "templateId")
                     {
-                        if (keyValuePair.Key != "templateId")
+                        string dummy = null;
+                        if (values.TryGetValue(keyValuePair.Key, out dummy))
                         {
-                            string dummy = null;
-                            if (values.TryGetValue(keyValuePair.Key, out dummy))
-                            {
-                                this.BuildHandler.SignalBuildError("Duplicate template value " + keyValuePair.Key);
-                            }
-                            values.Add(keyValuePair.Key, keyValuePair.Value);
+                            this.BuildHandler.SignalBuildError("Duplicate template value " + keyValuePair.Key);
                         }
+                        values.Add(keyValuePair.Key, keyValuePair.Value);
                     }
-
-                    // Write out everything before the tag
-                    int length = tag.StartTagPosition.StartPosition - endOfLastTag;
-                    outputHtmlBuilder.Append(rawHtml.Substring(endOfLastTag, length));
-
-                    // Get the template id from the tag properties
-                    string templateId = null;
-                    if (!tag.Properties.TryGetValue("templateId", out templateId))
-                    {
-                        this.BuildHandler.SignalBuildError("Missing templateId property for inject_template tag");
-                    }
-
-                    // Find the template that needs to be injected
-                    Template template = null;
-                    if (!Templates.TryGetValue(templateId, out template))
-                    {
-                        this.BuildHandler.SignalBuildError("Unknown template id " + templateId);
-                    }
-
-                    // Inject the template into the html
-                    outputHtmlBuilder.Append(template.Text);
-
-                    // Skip past the tag
-                    endOfLastTag = tag.HasContent ? tag.EndTagPosition.EndPosition : tag.StartTagPosition.EndPosition;
                 }
 
-                // Output the remainder of the html
-                outputHtmlBuilder.Append(rawHtml.Substring(endOfLastTag));
+                // Write out everything before the tag
+                int length = tag.StartTagPosition.StartPosition - endOfLastTag;
+                outputHtmlBuilder.Append(rawHtml.Substring(endOfLastTag, length));
 
-                // Attempt to inject any more templates - this supports templates within templates...
-                this.InjectTemplateRecursive(outputHtmlBuilder.ToString(), out outputHtml, ref values);
+                // Get the template id from the tag properties
+                string templateId = null;
+                if (!tag.Properties.TryGetValue("templateId", out templateId))
+                {
+                    this.BuildHandler.SignalBuildError("Missing templateId property for inject_template tag");
+                }
+
+                // Find the template that needs to be injected
+                Template template = null;
+                if (!templates.TryGetValue(templateId, out template))
+                {
+                    this.BuildHandler.SignalBuildError("Unknown template id " + templateId);
+                }
+
+                // Inject the template into the html
+                outputHtmlBuilder.Append(template.Text);
+
+                // Skip past the tag
+                endOfLastTag = tag.HasContent ? tag.EndTagPosition.EndPosition : tag.StartTagPosition.EndPosition;
             }
+
+            // Output the remainder of the html
+            outputHtmlBuilder.Append(rawHtml.Substring(endOfLastTag));
+
+            // Attempt to inject any more templates - this supports templates within templates...
+            this.InjectTemplateRecursive(outputHtmlBuilder.ToString(), templates, out outputHtml, ref values);
         }
 
         /// <summary>
         /// Injects values into HTML that has had templates injected into it
         /// </summary>
+        /// <returns>The result of the value injection</returns>
         /// <param name="html">The HTML containing injected templates</param>
         /// <param name="values">A list of values to inject into the templates</param>
-        /// <param name="outputHtml">The result of the value injection</param>
-        private void InjectTemplateValues(string html, Dictionary<string, string> values, out string outputHtml)
+        public string InjectTemplateValues(string html, Dictionary<string, string> values)
         {
-            outputHtml = null;
+            string outputHtml = this.InjectTagValues(html, values);
 
+            outputHtml = this.InjectCurlyValues(outputHtml, values);
+
+            // Remove unused injection points
+            this.RemoveUnusedCurlyValuesRecursive(0, ref outputHtml);
+
+            return outputHtml;
+        }
+
+        /// <summary>
+        /// Injects comment based tag values
+        /// </summary>
+        /// <returns>HTML after injecting values</returns>
+        /// <param name="html">Html.</param>
+        /// <param name="values">Values.</param>
+        private string InjectTagValues(string html, Dictionary<string, string> values)
+        {
             // Find all the places in the html that we need to inject values into
-            List<Tag> tags = this.ExtractTags(html, "INJECT_TEMPLATE_VALUE", false);
+            List<Tag> tags = this.TagServices.ExtractTags(html, "INJECT_TEMPLATE_VALUE", false);
 
             if (tags == null || tags.Count == 0)
             {
                 // No injecting needed
-                outputHtml = html;
-                return;
+                return html;
             }
 
             int endOfLastTag = 0;
@@ -195,19 +220,32 @@ namespace HTMLinjectorServices
             // Output the remainder of the html
             outputHtmlBuilder.Append(html.Substring(endOfLastTag));
 
-            outputHtml = outputHtmlBuilder.ToString();
+            return outputHtmlBuilder.ToString();
+        }
 
+        /// <summary>
+        /// Injects curly brace based values
+        /// </summary>
+        /// <returns>HTML after injecting values</returns>
+        /// <param name="html">Html.</param>
+        /// <param name="values">Values.</param>
+        private string InjectCurlyValues(string html, Dictionary<string, string> values)
+        {
             // Inject values                   
             foreach (KeyValuePair<string, string> property in values)
             {
-                outputHtml = outputHtml.Replace("{{{" + property.Key + "}}}", property.Value, StringComparison.OrdinalIgnoreCase);
+                html = html.Replace("{{{" + property.Key + "}}}", property.Value);
             }
 
-            // Remove unused injection points
-            this.RemoveUnusedInjectionPointsRecursive(0, ref outputHtml);
+            return html;
         }
 
-        private void RemoveUnusedInjectionPointsRecursive(int startIndex, ref string outputHtml)
+        /// <summary>
+        /// Removes the unused curly values recursively
+        /// </summary>
+        /// <param name="startIndex">Position in the HTML to start looking for the next injection point</param>
+        /// <param name="outputHtml">HTML after injecting values</param>
+        private void RemoveUnusedCurlyValuesRecursive(int startIndex, ref string outputHtml)
         {
             // Find the next open tag
             int openTagIndex = outputHtml.IndexOf("{{{", startIndex, StringComparison.Ordinal);
@@ -224,7 +262,7 @@ namespace HTMLinjectorServices
                     outputHtml = newOutputHtml;
 
                     // See if there are any more injection tags to be removed
-                    RemoveUnusedInjectionPointsRecursive(openTagIndex, ref outputHtml);
+                    this.RemoveUnusedCurlyValuesRecursive(openTagIndex, ref outputHtml);
                 }
             }
         }

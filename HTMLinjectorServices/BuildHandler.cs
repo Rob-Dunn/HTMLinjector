@@ -10,20 +10,24 @@ namespace HTMLinjectorServices
     /// Represents a build exception
     /// </summary>
     public class BuildException : Exception
-    { }
+    { 
+        public BuildException(string message) : base(message)
+        {
+        }
+    }
 
     /// <summary>
     /// Used to communicate build progress and errors
     /// </summary>
-    public class BuildHandler
+    public class BuildHandler : IBuildHandler
     {
         public event EventHandler<BuildEventArgs> BuildEvent;
 
         /// <summary>
         /// Gets or sets a value indicating whether a build error has occurred
         /// </summary>
-        /// <value><c>true</c> if has error; otherwise, <c>false</c>.</value>
-        public bool HasError { get; internal set; }
+        /// <value>True when there was an error</value>
+        public bool HasError { get; set; }
 
         /// <summary>
         /// Tells any listeners that a build event has occured
@@ -47,7 +51,7 @@ namespace HTMLinjectorServices
 
             this.SignalBuildEvent(eventMessage);
 
-            throw new BuildException();
+            throw new BuildException(eventMessage);
         }
 
         /// <summary>
@@ -62,7 +66,7 @@ namespace HTMLinjectorServices
 
             this.SignalBuildEvent(eventMessage);
 
-            throw new BuildException();
+            throw new BuildException(eventMessage);
         }
     }
 }

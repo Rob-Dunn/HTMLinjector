@@ -15,12 +15,16 @@
     <Compile Include="$(MSBuildThisFileDirectory)Models\Tag.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Models\TagPosition.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BuildHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService_Templates.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)BuildService\BuildService_Tags.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\BuildService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\TemplateServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\TagServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HTMLinjector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\ITagServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\ITemplateServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IBuildHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Models\" />
-    <Folder Include="$(MSBuildThisFileDirectory)BuildService\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Services\" />
   </ItemGroup>
 </Project>

@@ -5,5 +5,8 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.4.0" />
+  </ItemGroup>
   <Import Project="..\HTMLinjectorServices\HTMLinjectorServices.projitems" Label="Shared" Condition="Exists('..\HTMLinjectorServices\HTMLinjectorServices.projitems')" />
 </Project>

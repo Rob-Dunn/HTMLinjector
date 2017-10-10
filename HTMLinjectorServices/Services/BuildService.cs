@@ -1,17 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using HTMLinjectorServices.Models;
 
 namespace HTMLinjectorServices
 {
-    public partial class BuildService
+    internal class BuildService
     {
-        private BuildHandler BuildHandler { get; set; }
+        private IBuildHandler BuildHandler { get; set; }
+        private ITagServices TagServices { get; set; }
+        private ITemplateServices TemplateServices { get; set; }
         private IFolder SourceFolder { get; set; }
         private IFolder OutputFolder { get; set; }
         private Dictionary<string, Template> Templates { get; set; } = new Dictionary<string, Template>();
+
+        public BuildService(IBuildHandler buildHandler, ITagServices tagServices, ITemplateServices templateServices)
+        {
+            this.BuildHandler = buildHandler;
+            this.TagServices = tagServices;
+            this.TemplateServices = templateServices;
+        }
 
         /// <summary>
         /// Initiates a build
@@ -19,12 +27,10 @@ namespace HTMLinjectorServices
         /// <returns>The build.</returns>
         /// <param name="sourceFolder">A folder containing the source files to be processed</param>
         /// <param name="outputFolder">The folder in which the processed files should be placed</param>
-        /// <param name="buildHandler">A object through which build progress can be communicated back to the caller</param>
-        public async Task DoBuild(IFolder sourceFolder, IFolder outputFolder, BuildHandler buildHandler)
+        public async Task DoBuild(IFolder sourceFolder, IFolder outputFolder)
         {
             try
             {
-                this.BuildHandler = buildHandler;
                 this.SourceFolder = sourceFolder;
                 this.OutputFolder = outputFolder;
 
@@ -40,12 +46,14 @@ namespace HTMLinjectorServices
                 }
 
                 // Load templates from the source folder
-                await this.LoadTemplatesRecursive(this.SourceFolder);
+                await this.TemplateServices.LoadTemplatesRecursive(this.SourceFolder, this.Templates);
 
                 // Process HTML files in the source folder and write them out to the output folder
                 await this.DoBuildRecursive(this.SourceFolder, this.OutputFolder);
             }
+#pragma warning disable CS0168 // Variable is declared but never used
             catch (BuildException buildException)
+#pragma warning restore CS0168 // Variable is declared but never used
             {
                 this.BuildHandler.SignalBuildEvent("Processing failed :(");
             }
@@ -105,10 +113,10 @@ namespace HTMLinjectorServices
             // Inject the templates
             Dictionary<string, string> values = new Dictionary<string, string>();
             string outputHtml = null;
-            this.InjectTemplateRecursive(rawHtml, out outputHtml, ref values);
+            this.TemplateServices.InjectTemplateRecursive(rawHtml, this.Templates, out outputHtml, ref values);
 
             // Inject template values
-            this.InjectTemplateValues(outputHtml, values, out outputHtml);
+            outputHtml = this.TemplateServices.InjectTemplateValues(outputHtml, values);
 
             // Write out the processed html to the output folder
             await outputFolder.CreateFileAsync(sourceFile.Name, outputHtml);

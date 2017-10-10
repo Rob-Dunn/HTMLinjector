@@ -47,8 +47,8 @@ namespace HTMLinjectorCL
             buildHandler.BuildEvent += (sender, e) => { Console.WriteLine(e.EventMessage); };
 
             // Start the build
-            BuildService buildService = new BuildService();
-            buildService.DoBuild(sourceFolder, outputFolder, buildHandler).Wait();
+            HTMLinjector htmlInjector = new HTMLinjector();
+            htmlInjector.ProcessFiles(sourceFolder, outputFolder, buildHandler).Wait();
         }
     }
 }

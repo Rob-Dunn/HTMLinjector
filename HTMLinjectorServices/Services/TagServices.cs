@@ -1,13 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using HTMLinjectorServices.Models;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("HTMLinjectorTests")]
 namespace HTMLinjectorServices
 {
-    public partial class BuildService
+    internal class TagServices : ITagServices
     {
+        private IBuildHandler BuildHandler { get; set; }
+
+        public TagServices(IBuildHandler buildHandler)
+        {
+            this.BuildHandler = buildHandler;
+        }
+
         /// <summary>
         /// Finds all of the specfied tags in the specified text 
         /// </summary>
@@ -15,8 +21,7 @@ namespace HTMLinjectorServices
         /// <param name="searchText">The text to search for Tags</param>
         /// <param name="tagName">The name of the Tags to search for</param>
         /// <param name="hasContent">True when there is a Start and End tag</param>
-        /// <param name="tags">The </param>
-        private List<Tag> ExtractTags(string searchText, string tagName, bool hasContent)
+        public List<Tag> ExtractTags(string searchText, string tagName, bool hasContent)
         {
             List<Tag> tags = new List<Tag>(); 
             int startPosition = 0;
@@ -73,7 +78,7 @@ namespace HTMLinjectorServices
         /// </summary>
         /// <returns>The position details of the next tag</returns>
         /// <param name="searchText">The text to search for tags</param>
-        /// <param name="startPosition">The position within the text to start search for tags</param></param>
+        /// <param name="startPosition">The position within the text to start search for tags</param>
         /// <param name="tagName">The name of the tag to search for</param>
         private TagPosition FindTagPosition(string searchText, int startPosition, string tagName)
         {
